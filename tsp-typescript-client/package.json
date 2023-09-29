@@ -20,6 +20,7 @@
     "typescript": "latest"
   },
   "dependencies": {
+    "abort-controller": "^3.0.0",
     "json-bigint": "sidorares/json-bigint#2c0a5f896d7888e68e5f4ae3c7ea5cd42fd54473",
     "node-fetch": "^2.5.0",
     "rimraf": "latest"

@@ -1,6 +1,7 @@
 import fetch, { Headers } from 'node-fetch';
 import { Deserialized, Normalizer } from './serialization';
 import { TspClientResponse } from './tsp-client-response';
+import { RequestManager } from './request-manager';
 import JSONBigConfig = require('json-bigint');
 
 const JSONBig = JSONBigConfig({
@@ -139,15 +140,23 @@ export class RestClient {
     }
 
     protected static async httpRequest(req: HttpRequest): Promise<HttpResponse> {
+        return new Promise(async (resolve, reject) => {
+
         const { url, method, body, headers } = req;
+            RequestManager.getGlobalController().signal.addEventListener('abort', () => {
+            console.log('Rejecting the promise!');
+            reject(new Error('Canceled'));
+        });
         const response = await fetch(url, { method, headers, body });
         const text = await response.text();
-        return {
+        resolve({
             text,
             status: response.status,
             statusText: response.statusText,
             headers: response.headers
-        };
+        });
+    });
+
     }
 
     protected static encodeURLParameters(parameters: Map<string, string>): string {
