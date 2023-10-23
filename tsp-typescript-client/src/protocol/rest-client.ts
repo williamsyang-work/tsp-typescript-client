@@ -1,8 +1,9 @@
 import fetch, { Headers } from 'node-fetch';
 import { Deserialized, Normalizer } from './serialization';
 import { TspClientResponse } from './tsp-client-response';
-import { RequestManager } from './request-manager';
 import JSONBigConfig = require('json-bigint');
+import { ServerStateManager } from "./request-manager";
+
 
 const JSONBig = JSONBigConfig({
     useNativeBigInt: true,
@@ -140,23 +141,24 @@ export class RestClient {
     }
 
     protected static async httpRequest(req: HttpRequest): Promise<HttpResponse> {
-        return new Promise(async (resolve, reject) => {
 
+        const { abortController, serverStatus } = ServerStateManager;
         const { url, method, body, headers } = req;
-            RequestManager.getGlobalController().signal.addEventListener('abort', () => {
-            console.log('Rejecting the promise!');
-            reject(new Error('Canceled'));
-        });
-        const response = await fetch(url, { method, headers, body });
+
+        if (!serverStatus) {
+            return Promise.reject(new Error('Server is not available'));
+        }
+        
+        //@ts-ignore
+        const response = await fetch(url, { method, headers, body, signal: abortController.signal });
         const text = await response.text();
-        resolve({
+
+        return {
             text,
             status: response.status,
             statusText: response.statusText,
             headers: response.headers
-        });
-    });
-
+        };
     }
 
     protected static encodeURLParameters(parameters: Map<string, string>): string {

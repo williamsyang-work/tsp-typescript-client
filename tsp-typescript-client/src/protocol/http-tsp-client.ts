@@ -23,6 +23,7 @@ import { MarkerSet } from "../models/markerset";
 import { array } from "./serialization";
 import { DataTreeEntry } from "../models/data-tree";
 import { ITspClient } from "./tsp-client";
+import { ServerStateManager } from "./request-manager";
 
 /**
  * Http request implementation, using the RestClient helper, of the Trace Server Protocol client
@@ -104,7 +105,7 @@ export class HttpTspClient implements ITspClient {
 
     /**
      * Fetch a specific experiment information
-     * @param expUUID Experiment UUID to fetch
+     * @param expUUID Experiment UUID to fetchf
      * @returns The experiment
      */
     public async fetchExperiment(
@@ -514,6 +515,24 @@ export class HttpTspClient implements ITspClient {
      */
     public async checkHealth(): Promise<TspClientResponse<HealthStatus>> {
         const url = this.baseUrl + "/health";
-        return RestClient.get(url);
-    }
+        // Create a promise that rejects after 5 seconds (5000 milliseconds)
+        const timeoutPromise = new Promise<TspClientResponse<HealthStatus>>((_, reject) => {
+          setTimeout(() => {
+            ServerStateManager.cancelAllRequests();
+            reject(new Error('Request timed out'));
+          }, 5000);
+        });
+
+        const requestPromise = RestClient.get(url)
+            .catch(res => { 
+                ServerStateManager.cancelAllRequests();
+                return res;
+            });
+
+        // Use Promise.race() to wait for the first of the two promises to settle
+        return Promise.race([
+          requestPromise,   // Your original request
+          timeoutPromise,      // The timeout promise
+        ]) as Promise<TspClientResponse<HealthStatus>>;
+      }
 }
